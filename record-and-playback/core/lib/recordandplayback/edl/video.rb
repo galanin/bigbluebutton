@@ -436,9 +436,6 @@ module BigBlueButton
           BigBlueButton.logger.debug "  Laying out #{video_count} videos in #{layout_area[:name]}"
           next if video_count == 0
 
-          tile_offset_x = layout_area[:x]
-          tile_offset_y = layout_area[:y]
-
           tiles_h = 0
           tiles_v = 0
           tile_width = 0
