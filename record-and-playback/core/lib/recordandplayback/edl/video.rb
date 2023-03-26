@@ -553,22 +553,13 @@ module BigBlueButton
             in_time = video[:timestamp] + seek_offset
             out_time = in_time + duration
 
-            # Pre-filtering: scaling, padding, and extending.
-            ffmpeg_preprocess_filter = String.new
-            ffmpeg_preprocess_filter << '[0:v:0]'
-            ffmpeg_preprocess_filter << "scale=w=#{tile_width}:h=#{tile_height}:force_original_aspect_ratio=decrease,"
-            ffmpeg_preprocess_filter << "setsar=1,pad=w=#{tile_width}:h=#{tile_height}:x=-1:y=-1:color=white,"
-            # The trim command combines its arguments - end at the timestamp but only if at least one frame has been output.
-            ffmpeg_preprocess_filter << "trim=end=#{ms_to_s(out_time)}:end_frame=1"
-            ffmpeg_preprocess_filter << '[out]'
-
             # Set up filters and inputs for video pre-processing ffmpeg command
             ffmpeg_preprocess_command = [
               'ffmpeg', '-y', '-v', 'info', '-nostats', '-nostdin', '-max_error_rate', '1.0',
               # Ensure timebase conversion is not done, and frames prior to seek point run through filters.
               '-vsync', 'passthrough', '-noaccurate_seek',
               '-ss', ms_to_s(seek).to_s, '-itsoffset', ms_to_s(seek).to_s, '-i', video[:filename],
-              '-filter_complex', ffmpeg_preprocess_filter, '-map', '[out]',
+              '-filter_complex', ffmpeg_preprocess_filter(tile_width, tile_height, out_time), '-map', '[out]',
               '-c:v', 'rawvideo', "#{output}.#{pad_name}.nut",
             ]
             BigBlueButton.logger.debug("Executing: #{Shellwords.join(ffmpeg_preprocess_command)}")
@@ -656,6 +647,19 @@ module BigBlueButton
         raise "ffmpeg failed, exit code #{exitstatus}" if exitstatus != 0
 
         return output
+      end
+
+      def ffmpeg_preprocess_filter(tile_width, tile_height, out_time)
+        # Pre-filtering: scaling, padding, and extending.
+        ffmpeg_preprocess_filter = String.new
+        ffmpeg_preprocess_filter << '[0:v:0]'
+        ffmpeg_preprocess_filter << "scale=w=#{tile_width}:h=#{tile_height}:force_original_aspect_ratio=decrease,"
+        ffmpeg_preprocess_filter << "setsar=1,pad=w=#{tile_width}:h=#{tile_height}:x=-1:y=-1:color=white,"
+        # The trim command combines its arguments - end at the timestamp but only if at least one frame has been output.
+        ffmpeg_preprocess_filter << "trim=end=#{ms_to_s(out_time)}:end_frame=1"
+        ffmpeg_preprocess_filter << '[out]'
+
+        ffmpeg_preprocess_filter
       end
 
     end
