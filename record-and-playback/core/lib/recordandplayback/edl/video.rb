@@ -436,40 +436,11 @@ module BigBlueButton
           BigBlueButton.logger.debug "  Laying out #{video_count} videos in #{layout_area[:name]}"
           next if video_count == 0
 
-          tiles_h = 0
-          tiles_v = 0
-          tile_width = 0
-          tile_height = 0
-          total_area = 0
-
-          # Do an exhaustive search to maximize video areas
-          for tmp_tiles_v in 1..video_count
-            tmp_tiles_h = (video_count / tmp_tiles_v.to_f).ceil
-            tmp_tile_width = (2 * (layout_area[:width].to_f / tmp_tiles_h / 2).floor).to_i
-            tmp_tile_height = (2 * (layout_area[:height].to_f / tmp_tiles_v / 2).floor).to_i
-            next if tmp_tile_width <= 0 or tmp_tile_height <= 0
-
-            tmp_total_area = 0
-            area.each do |video|
-              video_width = videoinfo[video[:filename]][:aspect_ratio].numerator
-              video_height = videoinfo[video[:filename]][:aspect_ratio].denominator
-              scale_width, scale_height = aspect_scale(video_width, video_height, tmp_tile_width, tmp_tile_height)
-              tmp_total_area += scale_width * scale_height
-            end
-
-            if tmp_total_area > total_area
-              tiles_h = tmp_tiles_h
-              tiles_v = tmp_tiles_v
-              tile_width = tmp_tile_width
-              tile_height = tmp_tile_height
-              total_area = tmp_total_area
-            end
-          end
+          tiles_h, tiles_v, tile_width, tile_height = tiles_layout(video_count, layout_area, area, videoinfo)
+          BigBlueButton.logger.debug "    Tiling in a #{tiles_h}x#{tiles_v} grid"
 
           tile_x = 0
           tile_y = 0
-
-          BigBlueButton.logger.debug "    Tiling in a #{tiles_h}x#{tiles_v} grid"
 
           ffmpeg_filter << "[#{layout_area[:name]}_in];"
 
@@ -649,6 +620,41 @@ module BigBlueButton
         raise "ffmpeg failed, exit code #{exitstatus}" if exitstatus != 0
 
         return output
+      end
+
+      def tiles_layout(video_count, layout_area, area, videoinfo)
+        tiles_h = 0
+        tiles_v = 0
+        tile_width = 0
+        tile_height = 0
+
+        total_area = 0
+
+        # Do an exhaustive search to maximize video areas
+        for tmp_tiles_v in 1..video_count
+          tmp_tiles_h = (video_count / tmp_tiles_v.to_f).ceil
+          tmp_tile_width = (2 * (layout_area[:width].to_f / tmp_tiles_h / 2).floor).to_i
+          tmp_tile_height = (2 * (layout_area[:height].to_f / tmp_tiles_v / 2).floor).to_i
+          next if tmp_tile_width <= 0 or tmp_tile_height <= 0
+
+          tmp_total_area = 0
+          area.each do |video|
+            video_width = videoinfo[video[:filename]][:aspect_ratio].numerator
+            video_height = videoinfo[video[:filename]][:aspect_ratio].denominator
+            scale_width, scale_height = aspect_scale(video_width, video_height, tmp_tile_width, tmp_tile_height)
+            tmp_total_area += scale_width * scale_height
+          end
+
+          if tmp_total_area > total_area
+            tiles_h = tmp_tiles_h
+            tiles_v = tmp_tiles_v
+            tile_width = tmp_tile_width
+            tile_height = tmp_tile_height
+            total_area = tmp_total_area
+          end
+        end
+
+        [tiles_h, tiles_v, tile_width, tile_height]
       end
 
       def ffmpeg_preprocess_scale_filter(tile_width, tile_height)
