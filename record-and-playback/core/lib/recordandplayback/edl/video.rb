@@ -445,22 +445,13 @@ module BigBlueButton
           ffmpeg_filter << "[#{layout_area[:name]}_in];"
 
           area.each do |video|
-            this_videoinfo = videoinfo[video[:filename]]
             BigBlueButton.logger.debug "    tile location (#{tile_x}, #{tile_y})"
-            video_width = this_videoinfo[:aspect_ratio].numerator
-            video_height = this_videoinfo[:aspect_ratio].denominator
-            BigBlueButton.logger.debug "      original aspect: #{video_width}x#{video_height}"
 
-            scale_width, scale_height = aspect_scale(video_width, video_height, tile_width, tile_height)
-            BigBlueButton.logger.debug "      scaled size: #{scale_width}x#{scale_height}"
+            this_videoinfo = videoinfo[video[:filename]]
+            debug_this_videoinfo(video, this_videoinfo, tile_width, tile_height)
 
             seek = video[:timestamp]
-            BigBlueButton.logger.debug("      start timestamp: #{seek}")
             seek_offset = this_videoinfo[:start_time]
-            video_start_offset = this_videoinfo[:video][:start_time]
-            BigBlueButton.logger.debug("      seek offset: #{seek_offset}, video start offset: #{video_start_offset}")
-            BigBlueButton.logger.debug("      codec: #{this_videoinfo[:video][:codec_name].inspect}")
-            BigBlueButton.logger.debug("      duration: #{this_videoinfo[:duration]}, original duration: #{video[:original_duration]}")
 
             # Desktop sharing videos in flashsv2 do not have regular
             # keyframes, so seeking in them doesn't really work.
@@ -620,6 +611,23 @@ module BigBlueButton
         raise "ffmpeg failed, exit code #{exitstatus}" if exitstatus != 0
 
         return output
+      end
+
+      def debug_this_videoinfo(video, this_videoinfo, tile_width, tile_height)
+        video_width = this_videoinfo[:aspect_ratio].numerator
+        video_height = this_videoinfo[:aspect_ratio].denominator
+        BigBlueButton.logger.debug "      original aspect: #{video_width}x#{video_height}"
+
+        scale_width, scale_height = aspect_scale(video_width, video_height, tile_width, tile_height)
+        BigBlueButton.logger.debug "      scaled size: #{scale_width}x#{scale_height}"
+
+        seek = video[:timestamp]
+        BigBlueButton.logger.debug("      start timestamp: #{seek}")
+        seek_offset = this_videoinfo[:start_time]
+        video_start_offset = this_videoinfo[:video][:start_time]
+        BigBlueButton.logger.debug("      seek offset: #{seek_offset}, video start offset: #{video_start_offset}")
+        BigBlueButton.logger.debug("      codec: #{this_videoinfo[:video][:codec_name].inspect}")
+        BigBlueButton.logger.debug("      duration: #{this_videoinfo[:duration]}, original duration: #{video[:original_duration]}")
       end
 
       def tiles_layout(video_count, layout_area, area, videoinfo)
