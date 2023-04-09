@@ -493,14 +493,6 @@ module BigBlueButton
               next
             end
 
-            # Apply the video start time offset to seek to the correct point.
-            # Only actually apply the offset if we're already seeking so we
-            # don't start seeking in a file where we've overridden the seek
-            # behaviour.
-            if seek > 0
-              seek = seek + seek_offset
-            end
-
             # Launch the ffmpeg process to use for this input to pre-process the video to constant video resolution
             # This has to be done in an external process, since if it's done in the same process, the entire filter
             # chain gets re-initialized on every resolution change, resulting in losing state on all stateful filters.
@@ -518,14 +510,13 @@ module BigBlueButton
               '[out]'
 
             # Set up filters and inputs for video pre-processing ffmpeg command
-            ffmpeg_preprocess_command = [
-              'ffmpeg', '-y', '-v', 'info', '-nostats', '-nostdin', '-max_error_rate', '1.0',
-              # Ensure timebase conversion is not done, and frames prior to seek point run through filters.
-              '-vsync', 'passthrough', '-noaccurate_seek',
-              '-ss', ms_to_s(seek).to_s, '-itsoffset', ms_to_s(seek).to_s, '-i', video[:filename],
-              '-filter_complex', preprocess_filter, '-map', '[out]',
-              '-c:v', 'rawvideo', ffmpeg_preprocess_output,
-            ]
+            ffmpeg_preprocess_command =
+              ['ffmpeg'] +
+              ffmpeg_preprocess_common_options +
+              ffmpeg_preprocess_seek_options(seek, seek_offset) +
+              ['-i', video[:filename], '-filter_complex', preprocess_filter] +
+              ffmpeg_preprocess_filter_options(preprocess_filter) +
+              [ffmpeg_preprocess_output]
             BigBlueButton.logger.debug("Executing: #{Shellwords.join(ffmpeg_preprocess_command)}")
             ffmpeg_preprocess_pid = spawn(*ffmpeg_preprocess_command, err: [ffmpeg_preprocess_log, 'w'])
             aux_ffmpeg_processes << {
@@ -663,6 +654,39 @@ module BigBlueButton
         end
 
         [tiles_h, tiles_v, tile_width, tile_height]
+      end
+
+      def ffmpeg_preprocess_common_options
+        [
+          '-y', '-v', 'info', '-nostats', '-nostdin',
+          '-max_error_rate', '1.0',
+          # Ensure timebase conversion is not done, and frames prior to seek point run through filters.
+          '-vsync', 'passthrough',
+          '-noaccurate_seek',
+        ]
+      end
+
+      def ffmpeg_preprocess_seek_options(seek, seek_offset)
+        # Apply the video start time offset to seek to the correct point.
+        # Only actually apply the offset if we're already seeking so we
+        # don't start seeking in a file where we've overridden the seek
+        # behaviour.
+        if seek > 0
+          seek = seek + seek_offset
+        end
+        seek_s = ms_to_s(seek).to_s
+        [
+          '-ss', seek_s,
+          '-itsoffset', seek_s,
+        ]
+      end
+
+      def ffmpeg_preprocess_filter_options(preprocess_filter)
+        [
+          '-filter_complex', preprocess_filter,
+          '-map', '[out]',
+          '-c:v', 'rawvideo',
+        ]
       end
 
       def ffmpeg_preprocess_scale_filter(tile_width, tile_height)
