@@ -514,7 +514,7 @@ module BigBlueButton
             # Pre-filtering: scaling, padding, and extending.
             preprocess_filter = '[0:v:0]' +
               ffmpeg_preprocess_scale_filter(tile_width, tile_height) +
-              ffmpeg_preprocess_trim_filter(in_time, duration)
+              ffmpeg_preprocess_trim_filter(in_time, duration) +
               '[out]'
 
             # Set up filters and inputs for video pre-processing ffmpeg command
