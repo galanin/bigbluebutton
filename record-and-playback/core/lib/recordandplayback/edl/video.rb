@@ -524,7 +524,7 @@ module BigBlueButton
               '-vsync', 'passthrough', '-noaccurate_seek',
               '-ss', ms_to_s(seek).to_s, '-itsoffset', ms_to_s(seek).to_s, '-i', video[:filename],
               '-filter_complex', preprocess_filter, '-map', '[out]',
-              '-c:v', 'rawvideo', "#{output}.#{pad_name}.nut",
+              '-c:v', 'rawvideo', ffmpeg_preprocess_output,
             ]
             BigBlueButton.logger.debug("Executing: #{Shellwords.join(ffmpeg_preprocess_command)}")
             ffmpeg_preprocess_pid = spawn(*ffmpeg_preprocess_command, err: [ffmpeg_preprocess_log, 'w'])
